@@ -7,6 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Trò Chơi Wordsearch</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -143,7 +144,7 @@
         let foundWords = [];
         let startCell = null;
         let unplacedWords = [];
-        let placedWordDirections = []; // Lưu hướng đặt từ
+        let placedWordDirections = [];
 
         function initGrid() {
             grid = Array(gridSize).fill().map(() => Array(gridSize).fill(''));
@@ -170,14 +171,13 @@
                 { dr: 1, dc: -1, name: 'chéo xuống trái' }
             ];
 
-            // Sắp xếp từ dài đến ngắn
             const sortedWords = words.map((word, index) => ({ word, index }))
                 .sort((a, b) => b.word.length - a.word.length);
 
             sortedWords.forEach(({ word, index }) => {
                 let placed = false;
                 let attempts = 0;
-                const maxAttempts = 300; // Tăng số lần thử
+                const maxAttempts = 300;
 
                 while (!placed && attempts < maxAttempts) {
                     attempts++;
@@ -377,6 +377,13 @@
                 foundWords.push(wordFound);
                 selectedCells.forEach(cell => cell.classList.add('found'));
                 renderWordList();
+                // Thêm hiệu ứng pháo hoa
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00']
+                });
                 console.log(`Tìm thấy từ: ${displayWords[wordIndex]}`);
                 if (foundWords.length === words.length) {
                     alert('Chúc mừng! Bạn đã tìm hết tất cả các từ!');
