@@ -48,8 +48,8 @@
             background-color: #aaffaa;
         }
         .cell.found {
-            background-color: #4caf50;
             font-weight: bold;
+            color: white; /* Chữ trắng cho tương phản */
         }
         #word-list {
             max-width: 300px;
@@ -83,9 +83,9 @@
         #restart:hover {
             background-color: #0056b3;
         }
-        #status {
-            margin-top: 10px;
+        #status, #high-score, #timer {
             font-size: 16px;
+            margin-top: 10px;
             font-weight: bold;
         }
         @media (max-width: 768px) {
@@ -113,6 +113,8 @@
         <div>
             <div id="puzzle"></div>
             <div id="status">Đã tìm: 0/26 từ</div>
+            <div id="timer">Thời gian: 00:00</div>
+            <div id="high-score">Điểm cao: 0 từ, Thời gian tốt nhất: chưa có</div>
             <button id="restart">Chơi lại</button>
         </div>
         <div id="word-list">
@@ -128,7 +130,7 @@
             'LISTEN TO MUSIC', 'GET DRESSED', 'TAKE THE BUS', 'DO MY HOMEWORK', 'WATER THE PLANTS',
             'COMB MY HAIR', 'GO TO BED', 'HAVE BREAKFAST', 'GO HOME', 'WRITE',
             'PLAY VIDEO GAMES'
-        ].map(word => word.toUpperCase().replace(/\s/g, '')); // Loại bỏ dấu cách để đặt trong lưới
+        ].map(word => word.toUpperCase().replace(/\s/g, ''));
         const displayWords = [
             'Walk the dog', 'Make the bed', 'Ride a bike', 'Have a bath', 'Brush my teeth',
             'Read a book', 'Play the guitar', 'Go to school', 'Wash the car', 'Wake up',
@@ -136,7 +138,14 @@
             'Listen to music', 'Get dressed', 'Take the bus', 'Do my homework', 'Water the plants',
             'Comb my hair', 'Go to bed', 'Have breakfast', 'Go home', 'Write',
             'Play video games'
-        ]; // Danh sách để hiển thị
+        ];
+
+        const colorSets = [
+            '#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6',
+            '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#fffac8', '#800000', '#aaffc3',
+            '#808000', '#ffd8b1', '#000075', '#808080', '#ff4500', '#da70d6', '#eee8aa', '#98fb98',
+            '#1e90ff', '#ff69b4'
+        ]; // 26 màu cho 26 cụm từ
 
         const gridSize = 20;
         let grid = [];
@@ -145,15 +154,19 @@
         let startCell = null;
         let unplacedWords = [];
         let placedWordDirections = [];
+        let startTime = null;
+        let timerInterval = null;
+        let wordColors = {};
 
         function initGrid() {
             grid = Array(gridSize).fill().map(() => Array(gridSize).fill(''));
             unplacedWords = [];
             placedWordDirections = [];
+            wordColors = {};
             placeWords();
             if (unplacedWords.length > 0) {
                 console.warn('Các từ không được đặt:', unplacedWords);
-                initGrid(); // Thử lại nếu có từ bị thiếu
+                initGrid();
             }
             fillEmptyCells();
             console.log('Hướng đặt từ:', placedWordDirections);
@@ -269,6 +282,47 @@
         function updateStatus() {
             const status = document.getElementById('status');
             status.textContent = `Đã tìm: ${foundWords.length}/${words.length} từ`;
+            updateHighScore();
+        }
+
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                const seconds = (elapsed % 60).toString().padStart(2, '0');
+                document.getElementById('timer').textContent = `Thời gian: ${minutes}:${seconds}`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            return Math.floor((Date.now() - startTime) / 1000);
+        }
+
+        function updateHighScore() {
+            const highScore = localStorage.getItem('wordsearchHighScore') || 0;
+            const bestTime = localStorage.getItem('wordsearchBestTime') || null;
+            const currentScore = foundWords.length;
+
+            if (currentScore > highScore) {
+                localStorage.setItem('wordsearchHighScore', currentScore);
+            }
+            if (currentScore === words.length) {
+                const currentTime = stopTimer();
+                if (!bestTime || currentTime < bestTime) {
+                    localStorage.setItem('wordsearchBestTime', currentTime);
+                }
+            }
+
+            const displayBestTime = bestTime
+                ? `${Math.floor(bestTime / 60).toString().padStart(2, '0')}:${(bestTime % 60).toString().padStart(2, '0')}`
+                : 'chưa có';
+            document.getElementById('high-score').textContent = `Điểm cao: ${Math.max(highScore, currentScore)} từ, Thời gian tốt nhất: ${displayBestTime}`;
         }
 
         function getCellFromCoordinates(x, y) {
@@ -375,18 +429,23 @@
 
             if (wordFound) {
                 foundWords.push(wordFound);
-                selectedCells.forEach(cell => cell.classList.add('found'));
+                const color = colorSets[Math.floor(Math.random() * colorSets.length)];
+                wordColors[wordFound] = color;
+                selectedCells.forEach(cell => {
+                    cell.classList.add('found');
+                    cell.style.backgroundColor = color;
+                });
                 renderWordList();
-                // Thêm hiệu ứng pháo hoa
                 confetti({
                     particleCount: 100,
                     spread: 70,
                     origin: { y: 0.6 },
                     colors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00']
                 });
-                console.log(`Tìm thấy từ: ${displayWords[wordIndex]}`);
+                console.log(`Tìm thấy cụm từ: ${displayWords[wordIndex]} với màu: ${color}`);
                 if (foundWords.length === words.length) {
-                    alert('Chúc mừng! Bạn đã tìm hết tất cả các từ!');
+                    alert('Chúc mừng! Bạn đã tìm hết tất cả các cụm từ!');
+                    stopTimer();
                 }
             }
         }
@@ -396,12 +455,14 @@
             initGrid();
             renderGrid();
             renderWordList();
+            startTimer();
         }
 
         function init() {
             initGrid();
             renderGrid();
             renderWordList();
+            startTimer();
             const puzzle = document.getElementById('puzzle');
             puzzle.addEventListener('mousedown', handleStart);
             puzzle.addEventListener('touchstart', handleStart);
